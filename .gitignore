@@ -1,0 +1,8 @@
+.venv/
+.vscode
+server/__pycache__/
+server/data/
+server/certs/server.crt
+server/certs/server.key
+client/build/
+client/*.exe

@@ -1,22 +1,18 @@
-#include <windows.h>
-#include <iostream>
+#include "client.h"
 
-void monitorActivity() {
-    LASTINPUTINFO lii;
-    lii.cbSize = sizeof(LASTINPUTINFO);
-    
-    while (true) {
-        GetLastInputInfo(&lii);
-        DWORD currentTick = GetTickCount();
-        DWORD idleTime = currentTick - lii.dwTime;
-
-        if (idleTime < 10000) {
-            std::cout << "User is active." << std::endl;
-        } else {
-            std::cout << "User is inactive." << std::endl;
-        }
-
-        // Sleep for 10 seconds before checking again
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+unsigned long GetIdleSeconds() {
+    // Windows keeps the tick count of the last user input, which is enough for
+    // lightweight activity detection without a keyboard/mouse hook.
+    LASTINPUTINFO inputInfo;
+    inputInfo.cbSize = sizeof(LASTINPUTINFO);
+    if (!GetLastInputInfo(&inputInfo)) {
+        return 0;
     }
+
+    const DWORD currentTick = GetTickCount();
+    return static_cast<unsigned long>((currentTick - inputInfo.dwTime) / 1000);
+}
+
+std::string GetActivityState(unsigned long idleSeconds, unsigned long idleThresholdSeconds) {
+    return idleSeconds >= idleThresholdSeconds ? "idle" : "active";
 }

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Activity Monitor Frontend</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <div class="hero__copy">
+                <p class="eyebrow">Standalone Frontend</p>
+                <h1>Мониторинг активности сотрудников</h1>
+                <p class="hero__text">
+                    Отдельный frontend работает поверх HTTPS API сервера и показывает клиентов,
+                    историю активности, очередь команд и историю запросов скриншотов.
+                </p>
+            </div>
+            <div class="hero__settings">
+                <label class="field">
+                    <span>API Base URL</span>
+                    <input id="apiBaseUrl" type="text" value="https://127.0.0.1:5000">
+                </label>
+                <button id="saveSettingsButton" class="button button--secondary">Сохранить URL</button>
+                <button id="refreshButton" class="button">Обновить данные</button>
+                <p id="statusLine" class="status-line">Ожидание загрузки данных...</p>
+            </div>
+        </section>
+
+        <section class="grid">
+            <article class="card card--wide">
+                <div class="card__header">
+                    <h2>Клиенты</h2>
+                    <span id="clientsCount">0 записей</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Статус</th>
+                                <th>Пользователь</th>
+                                <th>Домен</th>
+                                <th>Машина</th>
+                                <th>IP</th>
+                                <th>Активность</th>
+                                <th>Idle</th>
+                                <th>Last Active</th>
+                                <th>Last Seen</th>
+                                <th>Команда</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody">
+                            <tr><td colspan="10">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="card">
+                <div class="card__header">
+                    <h2>Последний скриншот</h2>
+                    <span id="previewLabel">клиент не выбран</span>
+                </div>
+                <div class="preview">
+                    <img id="previewImage" alt="Скриншот клиента">
+                    <div id="previewPlaceholder" class="preview__placeholder">
+                        Нажмите «Запросить скриншот», чтобы поставить команду в очередь.
+                    </div>
+                </div>
+                <p id="previewMeta" class="meta-text">История скриншотов загружается отдельно.</p>
+            </article>
+        </section>
+
+        <section class="grid">
+            <article class="card">
+                <div class="card__header">
+                    <h2>История активности</h2>
+                    <span>последние 20</span>
+                </div>
+                <ul id="activityList" class="feed">
+                    <li>Загрузка...</li>
+                </ul>
+            </article>
+
+            <article class="card">
+                <div class="card__header">
+                    <h2>Очередь и история команд</h2>
+                    <span>последние 20</span>
+                </div>
+                <ul id="commandsList" class="feed">
+                    <li>Загрузка...</li>
+                </ul>
+            </article>
+
+            <article class="card">
+                <div class="card__header">
+                    <h2>История скриншотов</h2>
+                    <span>последние 12</span>
+                </div>
+                <ul id="screenshotsList" class="feed">
+                    <li>Загрузка...</li>
+                </ul>
+            </article>
+        </section>
+    </main>
+
+    <script src="./app.js"></script>
+</body>
+</html>
