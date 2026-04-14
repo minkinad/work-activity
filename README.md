@@ -1,10 +1,10 @@
+# Client-Server Application Monitoring Work Activity
+
 [![Client](https://img.shields.io/badge/client-C%2B%2B%20%2F%20WinHTTP%20%2B%20WinAPI-00599c)](./client)
 [![Server](https://img.shields.io/badge/server-Python%20Flask%20%2B%20SQLite-1f6feb)](./server)
 [![Frontend](https://img.shields.io/badge/frontend-HTML%20%2F%20CSS%20%2F%20JS-0f7b6c)](./frontend)
 [![Security](https://img.shields.io/badge/security-TLS%20%2B%20HMAC-orange)](./server/certs/README.md)
 [![License](https://img.shields.io/badge/license-MIT-black)](./LICENSE)
-
-# Client-Server Application Monitoring Work Activity
 
 Клиент-серверное приложение для мониторинга рабочей активности сотрудников.
 
