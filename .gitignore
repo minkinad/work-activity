@@ -1,8 +1,16 @@
 .venv/
 .vscode
-server/__pycache__/
+.env
+.env.*
+!.env.example
+**/__pycache__/
+*.py[cod]
+**/.ruff_cache/
+.coverage
 server/data/
 server/certs/server.crt
 server/certs/server.key
 client/build/
 client/*.exe
+frontend/dist/
+frontend/node_modules/
