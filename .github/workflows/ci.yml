@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            server/requirements.txt
+            server/requirements-dev.txt
+      - run: python -m pip install --requirement server/requirements-dev.txt
+      - run: ruff check monitoring tests server.py
+        working-directory: server
+      - run: bandit --quiet --recursive monitoring
+        working-directory: server
+      - run: pip-audit --requirement requirements.txt
+        working-directory: server
+      - run: python -m unittest discover -s tests -v
+        working-directory: server
+      - run: python -m compileall -q monitoring server.py
+        working-directory: server
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: frontend
+      - run: npm audit --omit=dev
+        working-directory: frontend
+      - run: npm run ci
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-static
+          path: frontend/dist
+          if-no-files-found: error
+
+  windows-client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - run: msbuild client/Client.sln /m /p:Configuration=Release /p:Platform=x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-client
+          path: client/build/Release/Client.exe
+          if-no-files-found: error
