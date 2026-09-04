@@ -15,13 +15,13 @@ struct ClientConfig {
     int commandPollIntervalSeconds = 5;
     int idleThresholdSeconds = 300;
     bool useTls = true;
-    bool allowSelfSignedTls = true;
+    bool allowSelfSignedTls = false;
     bool enableAutostart = false;
     std::wstring registryValueName = L"WorkActivityMonitor";
     std::wstring serviceName = L"WorkActivityMonitorSvc";
     std::wstring serviceDisplayName = L"Work Activity Monitor Service";
     std::wstring serviceDescription = L"Uploads activity telemetry and executes queued screenshot commands.";
-    std::string sharedSecret = "change-me-in-production";
+    std::string sharedSecret;
 };
 
 struct ClientIdentity {

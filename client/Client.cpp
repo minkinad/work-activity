@@ -287,7 +287,14 @@ std::string ResolveLocalIpAddress() {
 
 std::string MakeClientId(const ClientIdentity& identity) {
     std::string value = identity.domain + "-" + identity.machine + "-" + identity.user;
-    std::replace(value.begin(), value.end(), ' ', '_');
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char symbol) {
+        return std::isalnum(symbol) || symbol == '.' || symbol == '_' || symbol == '-'
+            ? static_cast<char>(symbol)
+            : '_';
+    });
+    if (value.size() > 128) {
+        value.resize(128);
+    }
     return value;
 }
 
@@ -696,7 +703,7 @@ bool PollNextCommand(const ClientConfig& config, const ClientIdentity& identity,
 
 void ReportCommandFailure(const ClientConfig& config, const ClientIdentity& identity, long long commandId, const std::string& error) {
     const std::string body = BuildCommandErrorJson(identity, error);
-    const std::wstring path = BuildApiPath(config, L"/client/commands/" + std::to_wstring(commandId) + L"/complete");
+    const std::wstring path = BuildApiPath(config, L"/client/commands/" + std::to_wstring(commandId) + L"/fail");
     const HttpResponse response = SendSignedJsonRequest(config, identity, L"POST", path, body);
     if (!ResponseIsSuccessful(response)) {
         throw std::runtime_error("Failed to report command error");
@@ -988,6 +995,20 @@ std::string GetUtcTimestamp() {
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     const std::wstring configPath = GetExecutableDirectory() + L"\\config.ini";
     const ClientConfig config = LoadConfig(configPath);
+
+    if (
+        config.sharedSecret.size() < 32
+        || config.sharedSecret == "change-me-in-production"
+        || config.sharedSecret.rfind("replace-with-", 0) == 0
+    ) {
+        MessageBoxW(
+            NULL,
+            L"Set a unique shared_secret with at least 32 characters in config.ini.",
+            L"Work Activity Monitor configuration error",
+            MB_OK | MB_ICONERROR
+        );
+        return 2;
+    }
 
     int argc = 0;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
