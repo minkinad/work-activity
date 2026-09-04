@@ -3,36 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Activity Monitor Frontend</title>
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https: http://127.0.0.1:* http://localhost:*; img-src 'self' blob:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>Work Activity Monitor</title>
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
     <main class="page">
-        <section class="hero">
+        <header class="topbar">
+            <a class="brand" href="#top" aria-label="Work Activity Monitor">
+                <span class="brand__mark" aria-hidden="true">WA</span>
+                <span>
+                    <strong>Work Activity</strong>
+                    <small>Operations console</small>
+                </span>
+            </a>
+            <div id="connectionState" class="connection" aria-label="Состояние подключения"></div>
+        </header>
+
+        <section id="top" class="hero">
             <div class="hero__copy">
-                <p class="eyebrow">Standalone Frontend</p>
-                <h1>Мониторинг активности сотрудников</h1>
+                <p class="eyebrow">Private operations workspace</p>
+                <h1>Состояние команды без информационного шума</h1>
                 <p class="hero__text">
-                    Отдельный frontend работает поверх HTTPS API сервера и показывает клиентов,
-                    историю активности, очередь команд и историю запросов скриншотов.
+                    Следите за доступностью агентов, активностью и выполнением команд. Скриншоты
+                    загружаются только после явного действия оператора.
                 </p>
+                <div class="privacy-note">
+                    <strong>Чувствительные данные</strong>
+                    Используйте запрос снимка только в рамках утверждённой политики и с согласия сотрудника.
+                </div>
             </div>
-            <div class="hero__settings">
+
+            <form id="settingsForm" class="settings-panel">
+                <div class="settings-panel__heading">
+                    <div>
+                        <span class="section-kicker">Подключение</span>
+                        <h2>Доступ к API</h2>
+                    </div>
+                    <button id="forgetToken" class="text-button" type="button">Забыть токен</button>
+                </div>
                 <label class="field">
                     <span>API Base URL</span>
-                    <input id="apiBaseUrl" type="text" value="https://127.0.0.1:5000">
+                    <input id="apiBaseUrl" type="url" value="https://127.0.0.1:5000" required>
                 </label>
-                <button id="saveSettingsButton" class="button button--secondary">Сохранить URL</button>
-                <button id="refreshButton" class="button">Обновить данные</button>
-                <p id="statusLine" class="status-line">Ожидание загрузки данных...</p>
+                <label class="field">
+                    <span>Dashboard token</span>
+                    <input id="dashboardToken" type="password" autocomplete="off" minlength="32" placeholder="Минимум 32 символа" required>
+                </label>
+                <div class="settings-panel__actions">
+                    <button class="button" type="submit">Подключиться</button>
+                    <button id="refreshButton" class="button button--secondary" type="button">Обновить</button>
+                </div>
+                <p id="statusLine" class="status-line" aria-live="polite">Ожидание подключения…</p>
+            </form>
+        </section>
+
+        <section id="metrics" class="metrics" aria-label="Сводка"></section>
+
+        <section class="workspace-toolbar" aria-label="Фильтры dashboard">
+            <div class="workspace-toolbar__filters">
+                <label class="field field--compact">
+                    <span>Поиск клиента</span>
+                    <input id="clientSearch" type="search" placeholder="Имя, машина, IP…">
+                </label>
+                <label class="field field--compact">
+                    <span>Статус</span>
+                    <select id="clientStatus">
+                        <option value="all">Все</option>
+                        <option value="online">Онлайн</option>
+                        <option value="offline">Офлайн</option>
+                    </select>
+                </label>
+            </div>
+            <div class="workspace-toolbar__state">
+                <label class="toggle">
+                    <input id="autoRefresh" type="checkbox" checked>
+                    <span>Автообновление</span>
+                </label>
+                <span id="lastUpdated" class="muted">Ещё не обновлялось</span>
             </div>
         </section>
 
-        <section class="grid">
-            <article class="card card--wide">
+        <section class="grid grid--overview">
+            <article class="card card--clients">
                 <div class="card__header">
-                    <h2>Клиенты</h2>
-                    <span id="clientsCount">0 записей</span>
+                    <div>
+                        <span class="section-kicker">Agents</span>
+                        <h2>Клиенты</h2>
+                    </div>
+                    <span id="clientsCount" class="muted">0 из 0</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -47,64 +107,81 @@
                                 <th>Idle</th>
                                 <th>Last Active</th>
                                 <th>Last Seen</th>
-                                <th>Команда</th>
+                                <th>Действия</th>
                             </tr>
                         </thead>
                         <tbody id="clientsTableBody">
-                            <tr><td colspan="10">Загрузка...</td></tr>
+                            <tr><td colspan="10">Подключитесь к API.</td></tr>
                         </tbody>
                     </table>
                 </div>
             </article>
 
-            <article class="card">
+            <article class="card card--preview">
                 <div class="card__header">
-                    <h2>Последний скриншот</h2>
-                    <span id="previewLabel">клиент не выбран</span>
+                    <div>
+                        <span class="section-kicker">Protected media</span>
+                        <h2>Просмотр снимка</h2>
+                    </div>
+                    <span id="previewLabel" class="muted">Не открыт</span>
                 </div>
                 <div class="preview">
-                    <img id="previewImage" alt="Скриншот клиента">
+                    <img id="previewImage" alt="Скриншот рабочего стола" hidden>
                     <div id="previewPlaceholder" class="preview__placeholder">
-                        Нажмите «Запросить скриншот», чтобы поставить команду в очередь.
+                        Выберите сохранённый снимок. Файл не загружается автоматически.
                     </div>
                 </div>
-                <p id="previewMeta" class="meta-text">История скриншотов загружается отдельно.</p>
+                <p id="previewMeta" class="meta-text">Файл загружается только по явному действию оператора.</p>
+                <button id="clearPreview" class="button button--ghost button--small" type="button" hidden>Закрыть снимок</button>
             </article>
         </section>
 
-        <section class="grid">
-            <article class="card">
-                <div class="card__header">
-                    <h2>История активности</h2>
-                    <span>последние 20</span>
-                </div>
-                <ul id="activityList" class="feed">
-                    <li>Загрузка...</li>
-                </ul>
-            </article>
+        <section class="scope-bar">
+            <div>
+                <span class="section-kicker">Контекст ленты</span>
+                <strong id="selectedClient">Все клиенты</strong>
+            </div>
+            <button id="clearSelection" class="text-button" type="button" hidden>Показать всех</button>
+        </section>
 
+        <section class="grid grid--feeds">
             <article class="card">
                 <div class="card__header">
-                    <h2>Очередь и история команд</h2>
-                    <span>последние 20</span>
+                    <div><span class="section-kicker">Telemetry</span><h2>Активность</h2></div>
+                    <span class="muted">20 последних</span>
                 </div>
-                <ul id="commandsList" class="feed">
-                    <li>Загрузка...</li>
-                </ul>
+                <ul id="activityList" class="feed"><li>Нет данных.</li></ul>
             </article>
-
             <article class="card">
                 <div class="card__header">
-                    <h2>История скриншотов</h2>
-                    <span>последние 12</span>
+                    <div><span class="section-kicker">Lifecycle</span><h2>Команды</h2></div>
+                    <span class="muted">20 последних</span>
                 </div>
-                <ul id="screenshotsList" class="feed">
-                    <li>Загрузка...</li>
-                </ul>
+                <ul id="commandsList" class="feed"><li>Нет данных.</li></ul>
+            </article>
+            <article class="card">
+                <div class="card__header">
+                    <div><span class="section-kicker">Evidence</span><h2>Скриншоты</h2></div>
+                    <span class="muted">12 последних</span>
+                </div>
+                <ul id="screenshotsList" class="feed"><li>Нет данных.</li></ul>
             </article>
         </section>
     </main>
 
-    <script src="./app.js"></script>
+    <dialog id="captureDialog" class="dialog">
+        <form method="dialog">
+            <span class="section-kicker">Подтверждение действия</span>
+            <h2>Запросить снимок экрана?</h2>
+            <p id="captureTarget" class="dialog__target"></p>
+            <p class="muted">Команда затрагивает чувствительные данные и будет сохранена в истории.</p>
+            <div class="dialog__actions">
+                <button class="button button--ghost" value="cancel">Отмена</button>
+                <button class="button button--danger" value="capture">Запросить снимок</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script type="module" src="./src/app.js"></script>
 </body>
 </html>
