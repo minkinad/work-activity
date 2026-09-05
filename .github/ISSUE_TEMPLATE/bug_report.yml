@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible defect without secrets or personal data
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include secrets, certificates, database files, screenshots, or employee data. Report vulnerabilities privately using SECURITY.md.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Server API
+        - Frontend dashboard
+        - Windows client
+        - Build or CI
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: Use synthetic identifiers and redact all credentials.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python, Node.js, compiler, and browser versions where relevant.

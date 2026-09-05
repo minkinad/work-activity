@@ -33,21 +33,33 @@
 
 ## Архитектура
 
-Проект разбит на 3 слоя.
+Проект разбит на три приложения, а сервер — на отдельные архитектурные слои.
 
 - `client`
   Windows-агент на C++, который собирает активность, отправляет heartbeat, опрашивает очередь команд и загружает скриншоты по HTTPS.
 - `server`
-  Flask API, которое проверяет HMAC-подпись, пишет данные в SQLite и отдаёт dashboard API.
+  Flask API с application factory. HTTP-адаптеры, бизнес-сервисы, безопасность,
+  репозитории и SQLite-миграции разделены по модулям.
 - `frontend`
   статическое приложение на HTML/CSS/JS, которое живёт отдельно от сервера и обращается к API по CORS.
+
+Подробное описание границ и зависимостей: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+
+Руководства для разработчиков и инструментов:
+
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — правила внесения изменений;
+- [`docs/DEVELOPMENT.md`](./docs/DEVELOPMENT.md) — подготовка окружения и команды;
+- [`docs/API.md`](./docs/API.md) — краткий контракт API;
+- [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md) — частые проблемы;
+- [`AGENTS.md`](./AGENTS.md) — архитектурные и security-ограничения для coding agents.
 
 ### Реальный поток данных
 
 1. Клиент отправляет heartbeat на `POST /api/v1/client/heartbeat`.
 2. Сервер проверяет подпись и обновляет таблицы `clients` и `activity_history`.
 3. Клиент опрашивает `POST /api/v1/client/commands/poll`.
-4. Frontend создаёт команду на скриншот через `POST /api/v1/dashboard/clients/<client_id>/commands/screenshot`.
+4. Оператор проходит bearer-аутентификацию, после чего frontend создаёт команду на
+   скриншот через `POST /api/v1/dashboard/clients/<client_id>/commands/screenshot`.
 5. Сервер сохраняет команду в `commands` со статусом `queued`.
 6. Клиент получает команду `capture_screenshot`, делает PNG-скриншот и загружает его на `POST /api/v1/client/commands/<id>/screenshot`.
 7. Сервер сохраняет файл и метаданные в `screenshots`, а команду переводит в `completed`.
@@ -85,9 +97,16 @@ timestamp + "\n" + nonce + "\n" + client_id + "\n" + raw_body
 
 На сервере подпись проверяется через HMAC-SHA256, а `nonce` сохраняется в БД, чтобы не допустить повторную отправку того же подписанного запроса.
 
+### Доступ оператора
+
+Все `dashboard` endpoints, включая файлы скриншотов, требуют отдельный bearer token из
+`MONITOR_DASHBOARD_TOKEN`. CORS работает только для точного списка origin из
+`MONITOR_FRONTEND_ORIGINS`. Сервер не запускается с пустыми, короткими или стандартными
+секретами. Полная модель угроз и ограничения описаны в [`docs/SECURITY.md`](./docs/SECURITY.md).
+
 ## База данных
 
-Используется SQLite. Схема создаётся программно в [`server/server.py`](./server/server.py).
+Используется SQLite. Версионируемые SQL-миграции находятся в [`server/migrations`](./server/migrations).
 
 Полное описание схемы в отдельном документе:
 
@@ -125,12 +144,23 @@ Client-Server-application-monitoring-work-activity/
 |   `-- installer/
 |       `-- ClientSetup.iss
 |-- docs/
-|   `-- DATABASE_SCHEMA.md
+|   |-- API.md
+|   |-- ARCHITECTURE.md
+|   |-- DATABASE_SCHEMA.md
+|   |-- DEVELOPMENT.md
+|   |-- SECURITY.md
+|   `-- TROUBLESHOOTING.md
 |-- frontend/
 |   |-- index.html
+|   |-- package.json
+|   |-- scripts/
+|   |-- src/
 |   |-- styles.css
-|   `-- app.js
+|   `-- tests/
 |-- server/
+|   |-- migrations/
+|   |-- monitoring/
+|   |-- tests/
 |   |-- server.py
 |   |-- requirements.txt
 |   |-- certs/
@@ -139,7 +169,11 @@ Client-Server-application-monitoring-work-activity/
 |       |-- generate-dev-cert.sh
 |       `-- generate-dev-cert.ps1
 |-- .gitignore
+|-- AGENTS.md
+|-- CONTRIBUTING.md
 |-- LICENSE
+|-- Makefile
+|-- SECURITY.md
 `-- README.md
 ```
 
@@ -159,7 +193,9 @@ Client-Server-application-monitoring-work-activity/
 ### Сервер
 
 - [`server/server.py`](./server/server.py)
-  Flask API, SQLite, проверка подписи, история активности, очередь команд, история скриншотов.
+  Минимальная точка сборки и запуска HTTPS-сервера.
+- [`server/monitoring`](./server/monitoring)
+  Конфигурация, HTTP API, бизнес-сервисы, безопасность и слой хранения.
 - [`server/requirements.txt`](./server/requirements.txt)
   Единственная внешняя Python-зависимость: Flask.
 
@@ -167,8 +203,12 @@ Client-Server-application-monitoring-work-activity/
 
 - [`frontend/index.html`](./frontend/index.html)
   Разметка dashboard.
-- [`frontend/app.js`](./frontend/app.js)
-  Работа с API и обновление экранов.
+- [`frontend/src/app.js`](./frontend/src/app.js)
+  Контроллер интерфейса и orchestration пользовательских сценариев.
+- [`frontend/src/api-client.js`](./frontend/src/api-client.js)
+  Изолированный API-клиент с bearer-аутентификацией и timeout.
+- [`frontend/src/renderers.js`](./frontend/src/renderers.js)
+  Безопасный DOM-rendering без вставки непроверенного HTML.
 - [`frontend/styles.css`](./frontend/styles.css)
   Стили интерфейса.
 
@@ -185,10 +225,10 @@ heartbeat_interval_seconds = 15
 command_poll_interval_seconds = 5
 idle_threshold_seconds = 300
 use_tls = true
-allow_self_signed_tls = true
+allow_self_signed_tls = false
 enable_autostart = false
 registry_value_name = WorkActivityMonitor
-shared_secret = change-me-in-production
+shared_secret = replace-with-the-same-32-character-or-longer-secret-as-the-server
 service_name = WorkActivityMonitorSvc
 service_display_name = Work Activity Monitor Service
 service_description = Uploads activity telemetry and executes queued screenshot commands.
@@ -203,7 +243,7 @@ service_description = Uploads activity telemetry and executes queued screenshot 
 - `command_poll_interval_seconds` - период опроса очереди команд;
 - `idle_threshold_seconds` - порог idle в секундах;
 - `use_tls` - использовать HTTPS;
-- `allow_self_signed_tls` - игнорировать ошибки self-signed сертификата;
+- `allow_self_signed_tls` - разрешить self-signed сертификат только в изолированной разработке;
 - `enable_autostart` - добавить приложение в автозапуск текущего пользователя;
 - `registry_value_name` - имя значения в ветке `Run`;
 - `shared_secret` - общий секрет для HMAC;
@@ -233,7 +273,7 @@ cd server\tools
 cd server
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 Windows PowerShell:
@@ -242,28 +282,36 @@ Windows PowerShell:
 cd server
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
-### 3. Запустить API
+### 3. Настроить секреты и запустить API
 
 ```bash
 cd server
-MONITOR_SHARED_SECRET=change-me-in-production python server.py
+export MONITOR_SHARED_SECRET="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export MONITOR_DASHBOARD_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+python server.py
 ```
+
+Скопируйте `MONITOR_SHARED_SECRET` в `client/config.ini`. Значения должны быть разными и
+содержать минимум 32 символа. Полный шаблон конфигурации находится в [`.env.example`](./.env.example).
 
 Поддерживаемые переменные окружения:
 
 - `MONITOR_API_HOST`
 - `MONITOR_API_PORT`
 - `MONITOR_DB_PATH`
+- `MONITOR_SCREENSHOTS_DIR`
 - `MONITOR_CLIENT_TIMEOUT`
 - `MONITOR_COMMAND_RETRY_SECONDS`
 - `MONITOR_SIGNATURE_TOLERANCE_SECONDS`
 - `MONITOR_SHARED_SECRET`
+- `MONITOR_DASHBOARD_TOKEN`
 - `MONITOR_TLS_CERT`
 - `MONITOR_TLS_KEY`
-- `MONITOR_FRONTEND_ORIGIN`
+- `MONITOR_FRONTEND_ORIGINS`
+- `MONITOR_MAX_SCREENSHOT_BYTES`
 
 ### Что отдаёт сервер
 
@@ -278,21 +326,25 @@ MONITOR_SHARED_SECRET=change-me-in-production python server.py
 
 ## Запуск frontend
 
-Frontend не требует npm/yarn и может быть поднят любым статическим сервером.
+Frontend остаётся статическим приложением, но теперь имеет unit-тесты, security-проверку и
+воспроизводимую сборку.
 
 Пример:
 
 ```bash
 cd frontend
-python -m http.server 8081
+npm ci
+npm run ci
+python -m http.server 8081 --directory dist
 ```
 
 Дальше:
 
 1. открыть `http://127.0.0.1:8081`;
 2. указать `API Base URL`, например `https://127.0.0.1:5000`;
-3. сохранить URL;
-4. смотреть клиентов, историю активности, команды и скриншоты.
+3. указать значение `MONITOR_DASHBOARD_TOKEN`;
+4. применить настройки;
+5. смотреть клиентов, историю активности, команды и скриншоты.
 
 ## Сборка клиента
 
@@ -354,8 +406,10 @@ Client.exe --uninstall-service
 
 - `POST /api/v1/client/heartbeat`
 - `POST /api/v1/client/commands/poll`
-- `POST /api/v1/client/commands/<id>/complete`
+- `POST /api/v1/client/commands/<id>/fail`
 - `POST /api/v1/client/commands/<id>/screenshot`
+
+Старый endpoint `/complete` временно сохранён как совместимый alias для отчёта об ошибке.
 
 ### Dashboard endpoints
 
@@ -377,12 +431,45 @@ Client.exe --uninstall-service
 - историю скриншотов;
 - превью последнего скриншота.
 
+## Проверка
+
+Из корня репозитория полный набор локальных проверок запускается одной командой:
+
+```bash
+make check
+```
+
+Список доступных вспомогательных команд:
+
+```bash
+make help
+```
+
+Эквивалентный ручной запуск:
+
+```bash
+cd server
+python -m unittest discover -s tests -v
+ruff check monitoring tests server.py
+bandit --quiet --recursive monitoring
+pip-audit --requirement requirements.txt
+cd ..
+cd frontend
+npm ci
+npm run ci
+```
+
+GitHub Actions запускает серверные и frontend-тесты, Ruff, Bandit, `pip-audit`, `npm audit`,
+статическую сборку dashboard и Release-сборку Windows-клиента. Собранные frontend и
+`Client.exe` публикуются как CI artifacts. Отдельный CodeQL workflow анализирует Python,
+JavaScript и C++.
+
 ## Ограничения
 
 - Windows Service работает в Session 0, поэтому доступ к интерактивному desktop и скриншотам может быть ограничен. Для надёжного захвата пользовательского экрана практичнее user-session режим.
-- В проекте нет аутентификации операторов dashboard API.
-- `allow_self_signed_tls = true` удобно для разработки, но не подходит для production.
-- Схема БД создаётся программно, а не через систему миграций.
+- Один dashboard bearer token пока представляет всех операторов; для нескольких ролей нужен SSO/RBAC.
+- Глобальный HMAC-секрет клиентов следует заменить per-device credential перед большим развёртыванием.
+- Политика хранения скриншотов и юридически значимое согласие сотрудников остаются ответственностью оператора системы.
 
 ## Лицензия
 
