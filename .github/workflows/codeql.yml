@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -37,4 +37,4 @@ jobs:
       - name: Build C++ client
         if: matrix.language == 'c-cpp'
         run: msbuild client/Client.sln /m /p:Configuration=Release /p:Platform=x64
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
