@@ -46,7 +46,7 @@ jobs:
         working-directory: frontend
       - run: npm run ci
         working-directory: frontend
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dashboard-static
           path: frontend/dist
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
       - run: msbuild client/Client.sln /m /p:Configuration=Release /p:Platform=x64
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-client
           path: client/build/Release/Client.exe
