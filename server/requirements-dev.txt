@@ -1,4 +1,4 @@
 -r requirements.txt
 bandit>=1.7,<2.0
 pip-audit>=2.7,<3.0
-ruff>=0.9,<1.0
+ruff>=0.17.1,<1.0
